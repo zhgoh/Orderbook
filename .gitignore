@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/orderbooks
+orderbooks.so
+orderbooks.dylib
+orderbooks.dll
+orderbooks.a
+orderbooks.lib
+orderbooks-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
