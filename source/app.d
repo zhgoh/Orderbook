@@ -46,7 +46,6 @@ void main()
 					writeln("Not a valid choice: ", order);
 					break;
 				}
-
 			}
 
 			break;
