@@ -8,4 +8,4 @@ This is one of the common things people build to understand how an orderbooks, o
 
 ## TODO
 
-- Support different type of orders (market, limit, stop, fill-or-kill, day, good-till-cancelled)
+- Support different type of orders (simple orders like market, limit, fok, gtc).
