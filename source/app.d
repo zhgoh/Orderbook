@@ -12,12 +12,13 @@ void main()
      ##                ##       ##       ##                ##       ##       ##       ##  ##  ##  
 ##   ##           ##   ##  #######  ##   ##  ####     #######  ######   ##   ##  ##   ##  #####   
 ##   ##           ##   ##  ##  ##   ##   ##  ##       ##  ##   ##   ##  ##   ##  ##   ##  ##  ##  
-######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ## 
-");
+######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
 	Orderbook orderbook = new Orderbook();
 
-	while (true)
+	bool appLoop = true;
+	while (appLoop)
 	{
+		writeln();
 		writeln("Choice:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit");
 		immutable choice = readln();
 		switch (choice[0].toLower())
@@ -29,10 +30,13 @@ void main()
 			break;
 
 		case 's':
-			writeln("\nEnter Order Type:\n(M)arket order\n(Limit) order");
-
-			while (true)
+			bool orderLoop = true;
+			while (orderLoop)
 			{
+				writeln();
+				writeln(
+					"Enter Order Type:\n(M)arket\n(L)imit\n(F)ill-or-kill\n(G)ood-till-cancel\n(Q)uit to previous menu");
+
 				immutable order = readln();
 				switch (order[0].toLower())
 				{
@@ -40,6 +44,16 @@ void main()
 					break;
 
 				case 'l':
+					break;
+
+				case 'f':
+					break;
+
+				case 'g':
+					break;
+
+				case 'q':
+					orderLoop = false;
 					break;
 
 				default:
@@ -52,7 +66,8 @@ void main()
 
 		case 'q':
 			writeln("Quitting the app.");
-			return;
+			appLoop = false;
+			break;
 
 		default:
 			writeln("Not a valid choice: ", choice);
