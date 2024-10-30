@@ -4,4 +4,4 @@ This is one of the common things people build to understand how an orderbooks, o
 
 ## Preview
 
-![alt text](assets/index.PNG "index")
+![alt text](assets/index.png "index")
