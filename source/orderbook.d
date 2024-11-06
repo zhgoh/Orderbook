@@ -4,6 +4,7 @@ import std.range;
 import std.format : format;
 import std.random : uniform;
 import std.algorithm;
+import order;
 
 final class Orderbook
 {
@@ -58,6 +59,13 @@ final class Orderbook
     {
         immutable char[] bars = repeat(' ', length).array;
         return format("\033[48;5;%dm%s\033[0m", color, bars);
+    }
+
+    bool submitOrder(Order order)
+    {
+        writeln(order);
+        return true;
+
     }
 
     int[double] bidLevels;
