@@ -10,15 +10,18 @@ import order;
 
 void main()
 {
-	auto state = new State();
-	state.mainMenu();
+	auto engine = new Engine();
+	engine.mainMenu();
 }
 
 final class State
+final class Engine
 {
 	Random rnd;
 	Orderbook orderbook;
 	alias FnMap = void delegate()[char];
+
+	bool buy, sell;
 
 	this()
 	{
@@ -34,14 +37,19 @@ final class State
 
 	}
 
-	void loop(string prompt, FnMap functions)
+	string displayPrompt(string prompt)
+	{
+		writeln();
+		writeln(prompt);
+		return readln();
+	}
+
+	void choices(string prompt, FnMap functions)
 	{
 		bool running = true;
 		while (running)
 		{
-			writeln();
-			writeln(prompt);
-			immutable resp = readln();
+			immutable resp = displayPrompt(prompt);
 			bool matched = false;
 			foreach (ch, fn; functions)
 			{
@@ -66,9 +74,9 @@ final class State
 	{
 		FnMap charToFunctionMap;
 		charToFunctionMap['p'] = toDelegate(&menuPrintOrderbook);
-		charToFunctionMap['s'] = toDelegate(&menuSubmitOrder);
+		charToFunctionMap['s'] = toDelegate(&menuSubmitOrderQty);
 		charToFunctionMap['q'] = null;
-		loop("Choice:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit", charToFunctionMap);
+		choices("Choice:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit", charToFunctionMap);
 	}
 
 	void menuPrintOrderbook()
@@ -78,13 +86,41 @@ final class State
 		orderbook.show();
 	}
 
+	void menuSubmitOrderQty()
+	{
+		// TODO: does not work
+		FnMap charToFunctionMap;
+		charToFunctionMap['b'] = toDelegate(&menuSubmitOrderBuy);
+		charToFunctionMap['s'] = toDelegate(&menuSubmitOrderSell);
+		charToFunctionMap['q'] = null;
+		choices("Choice:\n(B)uy\n(S)ell\n(Q)uit", charToFunctionMap);
+
+		buy = sell = false;
+		auto qty = displayPrompt("Quantity: ");
+
+	}
+
+	void menuSubmitOrderBuy()
+	{
+		buy = true;
+		sell = false;
+	}
+
+	void menuSubmitOrderSell()
+	{
+		sell = true;
+		buy = false;
+	}
+
 	void menuSubmitOrder()
 	{
+		auto direction = displayPrompt("Buy/Sell: ");
+
 		FnMap charToFunctionMap;
 		charToFunctionMap['m'] = toDelegate(&menuMarketOrder);
 		charToFunctionMap['l'] = toDelegate(&menuLimitOrder);
 		charToFunctionMap['q'] = null;
-		loop("Enter Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu", charToFunctionMap);
+		choices("Enter Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu", charToFunctionMap);
 	}
 
 	void menuMarketOrder()
