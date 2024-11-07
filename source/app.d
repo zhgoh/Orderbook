@@ -10,124 +10,157 @@ import order;
 
 void main()
 {
-	auto engine = new Engine();
-	engine.mainMenu();
+	auto orderBook = new Orderbook();
+	State state = new StartState(orderBook, null);
+
+	while (state)
+	{
+		state = state.run();
+	}
 }
 
-final class State
-final class Engine
+alias FnMap = State delegate()[char];
+
+class State
 {
-	Random rnd;
-	Orderbook orderbook;
-	alias FnMap = void delegate()[char];
+	State prevState_;
+	Orderbook orderBook_;
 
-	bool buy, sell;
-
-	this()
+	this(Orderbook orderbook, State prevState)
 	{
-		orderbook = new Orderbook();
-		rnd = Random(unpredictableSeed);
-
-		writeln(" 
-######            #######  #######  ######   #######  #######  #######  #######  #######  ##   ## 
-     ##                ##       ##       ##                ##       ##       ##       ##  ##  ##  
-##   ##           ##   ##  #######  ##   ##  ####     #######  ######   ##   ##  ##   ##  #####   
-##   ##           ##   ##  ##  ##   ##   ##  ##       ##  ##   ##   ##  ##   ##  ##   ##  ##  ##  
-######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
-
+		orderBook_ = orderbook;
+		prevState_ = prevState;
 	}
 
-	string displayPrompt(string prompt)
+	State run()
+	{
+		return null;
+	}
+
+	string getInput(string prompt)
 	{
 		writeln();
 		writeln(prompt);
 		return readln();
 	}
 
-	void choices(string prompt, FnMap functions)
+	State choices(string prompt, FnMap functions)
 	{
-		bool running = true;
-		while (running)
+		immutable resp = getInput(prompt);
+		auto matched = false;
+		foreach (ch, fn; functions)
 		{
-			immutable resp = displayPrompt(prompt);
-			bool matched = false;
-			foreach (ch, fn; functions)
+			if (resp[0].toLower() == ch)
 			{
-				if (resp[0].toLower() == ch)
-				{
-					matched = true;
-					if (fn != null)
-						fn();
-					else
-						return;
-
-				}
-			}
-			if (!matched)
-			{
-				writeln("Not a valid choice: ", resp);
+				matched = true;
+				return fn();
 			}
 		}
+		if (!matched)
+		{
+			writeln("Not a valid choice: ", resp);
+		}
+		return this;
 	}
 
-	void mainMenu()
+	State quit()
+	{
+		return prevState_;
+	}
+}
+
+class StartState : State
+{
+	this(Orderbook orderbook, State prevState)
+	{
+		super(orderbook, prevState);
+		writeln(" 
+######            #######  #######  ######   #######  #######  #######  #######  #######  ##   ## 
+     ##                ##       ##       ##                ##       ##       ##       ##  ##  ##  
+##   ##           ##   ##  #######  ##   ##  ####     #######  ######   ##   ##  ##   ##  #####   
+##   ##           ##   ##  ##  ##   ##   ##  ##       ##  ##   ##   ##  ##   ##  ##   ##  ##  ##  
+######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
+	}
+
+	override State run()
 	{
 		FnMap charToFunctionMap;
-		charToFunctionMap['p'] = toDelegate(&menuPrintOrderbook);
-		charToFunctionMap['s'] = toDelegate(&menuSubmitOrderQty);
-		charToFunctionMap['q'] = null;
-		choices("Choice:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit", charToFunctionMap);
+		charToFunctionMap['p'] = toDelegate(&printOrderbook);
+		charToFunctionMap['s'] = toDelegate(&submitOrder);
+		charToFunctionMap['q'] = toDelegate(&quit);
+
+		return choices("Main menu:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit", charToFunctionMap);
 	}
 
-	void menuPrintOrderbook()
+	State printOrderbook()
 	{
 		writeln("Print Orderbook");
 		writeln();
-		orderbook.show();
+		orderBook_.show();
+		return this;
 	}
 
-	void menuSubmitOrderQty()
+	State submitOrder()
 	{
-		// TODO: does not work
+		return new OrderState(orderBook_, this);
+	}
+
+}
+
+class OrderState : State
+{
+	this(Orderbook orderbook, State prevState)
+	{
+		super(orderbook, prevState);
+	}
+
+	override State run()
+	{
 		FnMap charToFunctionMap;
-		charToFunctionMap['b'] = toDelegate(&menuSubmitOrderBuy);
-		charToFunctionMap['s'] = toDelegate(&menuSubmitOrderSell);
-		charToFunctionMap['q'] = null;
-		choices("Choice:\n(B)uy\n(S)ell\n(Q)uit", charToFunctionMap);
+		charToFunctionMap['m'] = toDelegate(&marketOrder);
+		charToFunctionMap['l'] = toDelegate(&limitOrder);
+		charToFunctionMap['q'] = toDelegate(&quit);
 
-		buy = sell = false;
-		auto qty = displayPrompt("Quantity: ");
-
+		return choices("Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu", charToFunctionMap);
 	}
 
-	void menuSubmitOrderBuy()
+	State marketOrder()
 	{
-		buy = true;
-		sell = false;
+		return new DirectionState(orderBook_, this, OrderType.MARKET);
 	}
 
-	void menuSubmitOrderSell()
+	State limitOrder()
 	{
-		sell = true;
-		buy = false;
+		return new DirectionState(orderBook_, this, OrderType.LIMIT);
+	}
+}
+
+class DirectionState : State
+{
+	OrderType orderType_;
+	this(Orderbook orderbook, State prevState, OrderType orderType)
+	{
+		super(orderbook, prevState);
+		orderType_ = orderType;
 	}
 
-	void menuSubmitOrder()
+	override State run()
 	{
-		auto direction = displayPrompt("Buy/Sell: ");
-
 		FnMap charToFunctionMap;
-		charToFunctionMap['m'] = toDelegate(&menuMarketOrder);
-		charToFunctionMap['l'] = toDelegate(&menuLimitOrder);
-		charToFunctionMap['q'] = null;
-		choices("Enter Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu", charToFunctionMap);
+		charToFunctionMap['b'] = toDelegate(&buyOrder);
+		charToFunctionMap['s'] = toDelegate(&sellOrder);
+		charToFunctionMap['q'] = toDelegate(&quit);
+
+		return choices("Order Direction:\n(B)uy\n(S)ell\n(Q)uit to previous menu", charToFunctionMap);
 	}
 
-	void menuMarketOrder()
+	State buyOrder()
 	{
+		return null;
 	}
 
-	void menuLimitOrder()
+	State sellOrder()
 	{
+		return null;
 	}
 }
