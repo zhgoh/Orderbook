@@ -109,6 +109,7 @@ class StartState : State
 
 class OrderState : State
 {
+	OrderType orderType_;
 	this(Orderbook orderbook, State prevState)
 	{
 		super(orderbook, prevState);
@@ -126,22 +127,23 @@ class OrderState : State
 
 	State marketOrder()
 	{
-		return new DirectionState(orderBook_, this, OrderType.MARKET);
+		orderType_ = OrderType.MARKET;
+		return new ActionState(orderBook_, this);
 	}
 
 	State limitOrder()
 	{
-		return new DirectionState(orderBook_, this, OrderType.LIMIT);
+		orderType_ = OrderType.LIMIT;
+		return new ActionState(orderBook_, this);
 	}
 }
 
-class DirectionState : State
+class ActionState : State
 {
-	OrderType orderType_;
-	this(Orderbook orderbook, State prevState, OrderType orderType)
+	Action action_;
+	this(Orderbook orderbook, State prevState)
 	{
 		super(orderbook, prevState);
-		orderType_ = orderType;
 	}
 
 	override State run()
@@ -156,11 +158,30 @@ class DirectionState : State
 
 	State buyOrder()
 	{
-		return null;
+		action_ = Action.BUY;
+		return new QuantityState(orderBook_, this);
 	}
 
 	State sellOrder()
 	{
-		return null;
+		action_ = Action.SELL;
+		return new QuantityState(orderBook_, this);
 	}
+}
+
+class QuantityState : State
+{
+	float qty_;
+	this(Orderbook orderbook, State prevState)
+	{
+		super(orderbook, prevState);
+	}
+
+	override State run()
+	{
+		writeln("\nInput quantity: ");
+		immutable resp = readln();
+		return this;
+	}
+
 }
