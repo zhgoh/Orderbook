@@ -1,15 +1,22 @@
-import std.stdio;
-import std.uni;
-import std.random;
-import std.functional;
+import std.stdio : writeln, readln, write;
+
+// import std.uni;
+// import std.random;
+import std.functional : toDelegate;
+import std.conv : to, ConvException;
+import std.string : strip, toLower;
 import orderbook;
 import order;
 
-// Inspired by https://www.youtube.com/watch?v=E2y5wiBO1oE
-// Inspired by https://www.youtube.com/watch?v=XeLWe0Cx_Lg
-
 void main()
 {
+	writeln(" 
+######            #######  #######  ######   #######  #######  #######  #######  #######  ##   ## 
+     ##                ##       ##       ##                ##       ##       ##       ##  ##  ##  
+##   ##           ##   ##  #######  ##   ##  ####     #######  ######   ##   ##  ##   ##  #####   
+##   ##           ##   ##  ##  ##   ##   ##  ##       ##  ##   ##   ##  ##   ##  ##   ##  ##  ##  
+######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
+
 	auto orderBook = new Orderbook();
 	State state = new StartState(orderBook, null);
 
@@ -40,13 +47,18 @@ class State
 	string getInput(string prompt)
 	{
 		writeln();
-		writeln(prompt);
-		return readln();
+		write(prompt);
+		return readln().strip();
 	}
 
 	State choices(string prompt, FnMap functions)
 	{
 		immutable resp = getInput(prompt);
+		if (resp.length == 0)
+		{
+			return this;
+		}
+
 		auto matched = false;
 		foreach (ch, fn; functions)
 		{
@@ -74,12 +86,6 @@ class StartState : State
 	this(Orderbook orderbook, State prevState)
 	{
 		super(orderbook, prevState);
-		writeln(" 
-######            #######  #######  ######   #######  #######  #######  #######  #######  ##   ## 
-     ##                ##       ##       ##                ##       ##       ##       ##  ##  ##  
-##   ##           ##   ##  #######  ##   ##  ####     #######  ######   ##   ##  ##   ##  #####   
-##   ##           ##   ##  ##  ##   ##   ##  ##       ##  ##   ##   ##  ##   ##  ##   ##  ##  ##  
-######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
 	}
 
 	override State run()
@@ -89,7 +95,7 @@ class StartState : State
 		charToFunctionMap['s'] = toDelegate(&submitOrder);
 		charToFunctionMap['q'] = toDelegate(&quit);
 
-		return choices("Main menu:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit", charToFunctionMap);
+		return choices("Main menu:\n(P)rint Orderbook\n(S)ubmit Order\n(Q)uit\n", charToFunctionMap);
 	}
 
 	State printOrderbook()
@@ -102,40 +108,9 @@ class StartState : State
 
 	State submitOrder()
 	{
-		return new OrderState(orderBook_, this);
-	}
-
-}
-
-class OrderState : State
-{
-	OrderType orderType_;
-	this(Orderbook orderbook, State prevState)
-	{
-		super(orderbook, prevState);
-	}
-
-	override State run()
-	{
-		FnMap charToFunctionMap;
-		charToFunctionMap['m'] = toDelegate(&marketOrder);
-		charToFunctionMap['l'] = toDelegate(&limitOrder);
-		charToFunctionMap['q'] = toDelegate(&quit);
-
-		return choices("Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu", charToFunctionMap);
-	}
-
-	State marketOrder()
-	{
-		orderType_ = OrderType.MARKET;
 		return new ActionState(orderBook_, this);
 	}
 
-	State limitOrder()
-	{
-		orderType_ = OrderType.LIMIT;
-		return new ActionState(orderBook_, this);
-	}
 }
 
 class ActionState : State
@@ -153,18 +128,74 @@ class ActionState : State
 		charToFunctionMap['s'] = toDelegate(&sellOrder);
 		charToFunctionMap['q'] = toDelegate(&quit);
 
-		return choices("Order Direction:\n(B)uy\n(S)ell\n(Q)uit to previous menu", charToFunctionMap);
+		return choices("Order Direction:\n(B)uy\n(S)ell\n(Q)uit to previous menu\n", charToFunctionMap);
 	}
 
 	State buyOrder()
 	{
 		action_ = Action.BUY;
-		return new QuantityState(orderBook_, this);
+		return new OrderState(orderBook_, this);
 	}
 
 	State sellOrder()
 	{
 		action_ = Action.SELL;
+		return new OrderState(orderBook_, this);
+	}
+}
+
+class OrderState : State
+{
+	OrderType orderType_;
+	this(Orderbook orderbook, State prevState)
+	{
+		super(orderbook, prevState);
+	}
+
+	override State run()
+	{
+		FnMap charToFunctionMap;
+		charToFunctionMap['m'] = toDelegate(&marketOrder);
+		charToFunctionMap['l'] = toDelegate(&limitOrder);
+		charToFunctionMap['q'] = toDelegate(&quit);
+
+		return choices("Order Type:\n(M)arket\n(L)imit\n(Q)uit to previous menu\n", charToFunctionMap);
+	}
+
+	State marketOrder()
+	{
+		orderType_ = OrderType.MARKET;
+		return new QuantityState(orderBook_, this);
+	}
+
+	State limitOrder()
+	{
+		orderType_ = OrderType.LIMIT;
+		return new LimitPriceState(orderBook_, this);
+	}
+}
+
+class LimitPriceState : State
+{
+	float price_;
+	this(Orderbook orderbook, State prevState)
+	{
+		super(orderbook, prevState);
+	}
+
+	override State run()
+	{
+		try
+		{
+			price_ = to!float(getInput("Input price: "));
+		}
+		catch (ConvException e)
+		{
+			writeln("Invalid price.");
+			return this;
+
+		}
+
 		return new QuantityState(orderBook_, this);
 	}
 }
@@ -179,9 +210,19 @@ class QuantityState : State
 
 	override State run()
 	{
-		writeln("\nInput quantity: ");
-		immutable resp = readln();
-		return this;
+		try
+		{
+			qty_ = to!int(getInput("Input quantity: "));
+		}
+		catch (ConvException e)
+		{
+			writeln("Invalid quantity.");
+			return this;
+
+		}
+		// TODO: Get order type, action by traversing the prevStates
+
+		return new StartState(orderBook_, null);
 	}
 
 }
