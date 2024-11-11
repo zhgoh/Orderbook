@@ -5,8 +5,17 @@ import std.stdio : writeln, readln, write;
 import std.functional : toDelegate;
 import std.conv : to, ConvException;
 import std.string : strip, toLower;
+import std.format : format;
+import std.random : Random, unpredictableSeed, uniform;
 import orderbook;
 import order;
+
+int generateRandomId()
+{
+	// Create a random number generator
+	auto rng = Random(unpredictableSeed);
+	return uniform(0, 1_000_000, rng);
+}
 
 void main()
 {
@@ -18,7 +27,7 @@ void main()
 ######            #######  ##   ##  ######   #######  ##   ##  #######  #######  #######  ##   ##");
 
 	auto orderBook = new Orderbook();
-	State state = new StartState(orderBook, null);
+	State state = new StartState(orderBook);
 
 	while (state)
 	{
@@ -33,10 +42,22 @@ class State
 	State prevState_;
 	Orderbook orderBook_;
 
-	this(Orderbook orderbook, State prevState)
+	float limitPrice_;
+	int bidAskQty_;
+	OrderType orderType_;
+	Action action_;
+
+	this(Orderbook orderbook, State prevState = null)
 	{
 		orderBook_ = orderbook;
 		prevState_ = prevState;
+		if (prevState)
+		{
+			limitPrice_ = prevState.limitPrice_;
+			bidAskQty_ = prevState.bidAskQty_;
+			orderType_ = prevState.orderType_;
+			action_ = prevState.action_;
+		}
 	}
 
 	State run()
@@ -83,13 +104,14 @@ class State
 
 class StartState : State
 {
-	this(Orderbook orderbook, State prevState)
+	this(Orderbook orderbook, State prevState = null)
 	{
 		super(orderbook, prevState);
 	}
 
 	override State run()
 	{
+		printOrderbook();
 		FnMap charToFunctionMap;
 		charToFunctionMap['p'] = toDelegate(&printOrderbook);
 		charToFunctionMap['s'] = toDelegate(&submitOrder);
@@ -110,13 +132,11 @@ class StartState : State
 	{
 		return new ActionState(orderBook_, this);
 	}
-
 }
 
 class ActionState : State
 {
-	Action action_;
-	this(Orderbook orderbook, State prevState)
+	this(Orderbook orderbook, State prevState = null)
 	{
 		super(orderbook, prevState);
 	}
@@ -133,21 +153,20 @@ class ActionState : State
 
 	State buyOrder()
 	{
-		action_ = Action.BUY;
+		action_ = Action.Buy;
 		return new OrderState(orderBook_, this);
 	}
 
 	State sellOrder()
 	{
-		action_ = Action.SELL;
+		action_ = Action.Sell;
 		return new OrderState(orderBook_, this);
 	}
 }
 
 class OrderState : State
 {
-	OrderType orderType_;
-	this(Orderbook orderbook, State prevState)
+	this(Orderbook orderbook, State prevState = null)
 	{
 		super(orderbook, prevState);
 	}
@@ -164,21 +183,20 @@ class OrderState : State
 
 	State marketOrder()
 	{
-		orderType_ = OrderType.MARKET;
+		orderType_ = OrderType.Market;
 		return new QuantityState(orderBook_, this);
 	}
 
 	State limitOrder()
 	{
-		orderType_ = OrderType.LIMIT;
+		orderType_ = OrderType.Limit;
 		return new LimitPriceState(orderBook_, this);
 	}
 }
 
 class LimitPriceState : State
 {
-	float price_;
-	this(Orderbook orderbook, State prevState)
+	this(Orderbook orderbook, State prevState = null)
 	{
 		super(orderbook, prevState);
 	}
@@ -187,7 +205,7 @@ class LimitPriceState : State
 	{
 		try
 		{
-			price_ = to!float(getInput("Input price: "));
+			limitPrice_ = to!float(getInput("Input price: "));
 		}
 		catch (ConvException e)
 		{
@@ -202,8 +220,7 @@ class LimitPriceState : State
 
 class QuantityState : State
 {
-	float qty_;
-	this(Orderbook orderbook, State prevState)
+	this(Orderbook orderbook, State prevState = null)
 	{
 		super(orderbook, prevState);
 	}
@@ -212,7 +229,10 @@ class QuantityState : State
 	{
 		try
 		{
-			qty_ = to!int(getInput("Input quantity: "));
+			bidAskQty_ = to!int(getInput(format("%s %s quantity: ", to!string(action_), to!string(
+					orderType_).toLower())));
+			auto order = Order(generateRandomId(), action_, orderType_, TimeInForce.Day, bidAskQty_, limitPrice_);
+			orderBook_.submitOrder(order);
 		}
 		catch (ConvException e)
 		{
@@ -220,9 +240,8 @@ class QuantityState : State
 			return this;
 
 		}
-		// TODO: Get order type, action by traversing the prevStates
+		writeln();
 
 		return new StartState(orderBook_, null);
 	}
-
 }

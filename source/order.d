@@ -2,21 +2,21 @@ module order;
 
 enum Action
 {
-    BUY,
-    SELL
+    Buy,
+    Sell,
 }
 
 enum OrderType
 {
-    MARKET,
-    LIMIT
+    Market,
+    Limit,
 }
 
 enum TimeInForce
 {
-    DAY,
-    GTC,
-    FOK
+    Day,
+    Gtc,
+    Fok
 }
 
 struct Order
@@ -25,5 +25,6 @@ struct Order
     Action action;
     OrderType orderType;
     TimeInForce timeInForce;
+    int quantity;
     double price;
 }
