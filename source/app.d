@@ -46,6 +46,7 @@ class State
 	int bidAskQty_;
 	OrderType orderType_;
 	Action action_;
+	TimeInForce timeInForce_;
 
 	this(Orderbook orderbook, State prevState = null)
 	{
@@ -57,6 +58,7 @@ class State
 			bidAskQty_ = prevState.bidAskQty_;
 			orderType_ = prevState.orderType_;
 			action_ = prevState.action_;
+			timeInForce_ = prevState.timeInForce_;
 		}
 	}
 
@@ -231,17 +233,53 @@ class QuantityState : State
 		{
 			bidAskQty_ = to!int(getInput(format("%s %s quantity: ", to!string(action_), to!string(
 					orderType_).toLower())));
-			auto order = Order(generateRandomId(), action_, orderType_, TimeInForce.Day, bidAskQty_, limitPrice_);
-			orderBook_.submitOrder(order);
+
+			return new TimeInForceState(orderBook_, this);
 		}
 		catch (ConvException e)
 		{
 			writeln("Invalid quantity.");
 			return this;
-
 		}
-		writeln();
+	}
+}
 
+class TimeInForceState : State
+{
+
+	this(Orderbook orderbook, State prevState = null)
+	{
+		super(orderbook, prevState);
+	}
+
+	override State run()
+	{
+		FnMap charToFunctionMap;
+		charToFunctionMap['f'] = toDelegate(&filledOrKilled);
+		charToFunctionMap['g'] = toDelegate(&goodTillCancelled);
+		charToFunctionMap['q'] = toDelegate(&quit);
+
+		return choices("Time in force:\n(F)illed-or-killed\n(G)ood-till-cancelled\n(Q)uit to previous menu\n",
+			charToFunctionMap);
+	}
+
+	State filledOrKilled()
+	{
+		timeInForce_ = TimeInForce.Fok;
+		return submitOrder();
+	}
+
+	State goodTillCancelled()
+	{
+		timeInForce_ = TimeInForce.Gtc;
+		return submitOrder();
+	}
+
+	State submitOrder()
+	{
+		auto order = Order(generateRandomId(), action_, orderType_, timeInForce_, bidAskQty_, limitPrice_);
+		orderBook_.submitOrder(order);
 		return new StartState(orderBook_, null);
 	}
+
 }

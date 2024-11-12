@@ -14,9 +14,8 @@ enum OrderType
 
 enum TimeInForce
 {
-    Day,
+    Fok,
     Gtc,
-    Fok
 }
 
 struct Order
